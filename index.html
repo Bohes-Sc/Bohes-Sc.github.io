@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-  <title>English Integrated Web · 分享即同步</title>
+  <title>English Integrated Web · 云端同步版</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, 'Segoe UI', Roboto, sans-serif; }
@@ -52,6 +52,7 @@
     @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
     @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
     .config-source-badge { background: #eef3fa; padding: 8px 16px; border-radius: 40px; font-size: 0.9rem; display: inline-block; margin-bottom: 16px; }
+    .sync-status { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 0.9rem; }
   </style>
 </head>
 <body>
@@ -80,6 +81,11 @@
   (function(){
     "use strict";
 
+    // ---------- 云端配置 (JSONBin) ----------
+    const BIN_ID = '69e9ed30856a68218963db64';
+    const ACCESS_KEY = '$2a$10$.T0zBKjmDIqXJGF4G.Ex2.s/KO7JR20Nn9n.XOYrIrBhqXUskchU6';
+    const BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+
     const DEFAULT_CONFIG = {
       settingPassword: "1234",
       aiTalkUrl: "https://weixin.qq.com/",
@@ -96,7 +102,8 @@
     let currentPartId = null;
     let settingAuthenticated = false;
     let passwordCallback = null;
-    let configSource = 'local'; // 'local', 'url', 'default'
+    let configSource = 'local'; // 'cloud', 'local', 'default'
+    let cloudConfigLoaded = false;
 
     const viewContainer = document.getElementById('viewContainer');
     const backButton = document.getElementById('backButton');
@@ -107,32 +114,44 @@
     const passwordError = document.getElementById('passwordError');
     const snackbar = document.getElementById('snackbar');
 
-    function showSnackbar(text) {
-      snackbar.textContent = text || '⚙️ 设置已保存';
+    function showSnackbar(text, isError = false) {
+      snackbar.textContent = text || '⚙️ 操作完成';
+      snackbar.style.background = isError ? '#b53b3b' : '#1e3c72';
       snackbar.classList.add('show');
-      setTimeout(() => snackbar.classList.remove('show'), 2800);
+      setTimeout(() => {
+        snackbar.classList.remove('show');
+        snackbar.style.background = '#1e3c72';
+      }, 2800);
     }
 
-    // ------ 核心：从 URL 读取分享配置 ------
-    function tryLoadConfigFromUrl() {
-      const urlParams = new URLSearchParams(window.location.search);
-      const encoded = urlParams.get('config');
-      if (encoded) {
-        try {
-          const json = atob(decodeURIComponent(encoded));
-          const imported = JSON.parse(json);
-          config = { ...DEFAULT_CONFIG, ...imported };
-          if (!config.gameParts || !Array.isArray(config.gameParts)) config.gameParts = DEFAULT_CONFIG.gameParts;
-          configSource = 'url';
-          // 将 URL 配置也存入 localStorage，方便后续离线使用
-          localStorage.setItem('english_integrated_config', JSON.stringify(config));
-          showSnackbar('✨ 已加载分享配置');
-          return true;
-        } catch (e) {
-          console.warn('URL 配置解析失败，使用本地存储');
+    // ---------- 从云端加载配置 ----------
+    async function loadConfigFromCloud() {
+      try {
+        showSnackbar('☁️ 正在从云端加载配置...');
+        const response = await fetch(`${BIN_URL}/latest`, {
+          headers: { 'X-Access-Key': ACCESS_KEY }
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        const cloudConfig = data.record;
+        
+        // 合并云端配置
+        config = { ...DEFAULT_CONFIG, ...cloudConfig };
+        if (!config.gameParts || !Array.isArray(config.gameParts)) {
+          config.gameParts = DEFAULT_CONFIG.gameParts;
         }
+        configSource = 'cloud';
+        cloudConfigLoaded = true;
+        
+        // 保存到本地存储作为备份
+        localStorage.setItem('english_integrated_config', JSON.stringify(config));
+        showSnackbar('✅ 云端配置加载成功');
+        renderCurrentView();
+      } catch (error) {
+        console.warn('云端加载失败，尝试使用本地存储', error);
+        loadConfigFromStorage();
+        showSnackbar('⚠️ 云端连接失败，使用本地缓存', true);
       }
-      return false;
     }
 
     function loadConfigFromStorage() {
@@ -146,7 +165,6 @@
           return;
         } catch (e) {}
       }
-      // 没有存储时用默认
       config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
       configSource = 'default';
       saveConfigToStorage(true);
@@ -154,8 +172,8 @@
 
     function saveConfigToStorage(silent = false) {
       localStorage.setItem('english_integrated_config', JSON.stringify(config));
-      configSource = 'local';
-      if (!silent) showSnackbar();
+      if (!silent && configSource !== 'cloud') configSource = 'local';
+      if (!silent) showSnackbar('💾 已保存到本地');
     }
 
     let saveTimer;
@@ -164,31 +182,31 @@
       saveTimer = setTimeout(() => saveConfigToStorage(false), 300);
     }
 
-    // 生成分享链接（压缩配置到 URL）
-    function generateShareUrl() {
-      const jsonStr = JSON.stringify(config);
-      const encoded = btoa(encodeURIComponent(jsonStr).replace(/%([0-9A-F]{2})/g, (match, p1) => String.fromCharCode('0x' + p1)));
-      const url = new URL(window.location.href);
-      url.searchParams.set('config', encoded);
-      return url.toString();
-    }
-
-    function copyShareLink() {
-      const link = generateShareUrl();
-      navigator.clipboard?.writeText(link).then(() => {
-        showSnackbar('🔗 分享链接已复制！发给别人就能看到你的设置');
-      }).catch(() => {
-        prompt('手动复制以下链接（发给别人即可同步设置）：', link);
-      });
-    }
-
-    // 重置为当前 URL 中的配置（如果有）
-    function resetToUrlConfig() {
-      if (tryLoadConfigFromUrl()) {
-        renderCurrentView();
-        showSnackbar('✅ 已重置为分享链接中的配置');
-      } else {
-        showSnackbar('当前没有分享配置');
+    // ---------- 发布配置到云端 ----------
+    async function publishToCloud() {
+      if (!settingAuthenticated) {
+        showSnackbar('请先进入设置页面', true);
+        return;
+      }
+      try {
+        showSnackbar('☁️ 正在发布到云端...');
+        const response = await fetch(BIN_URL, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Access-Key': ACCESS_KEY
+          },
+          body: JSON.stringify(config)
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        configSource = 'cloud';
+        cloudConfigLoaded = true;
+        // 同步保存本地
+        localStorage.setItem('english_integrated_config', JSON.stringify(config));
+        showSnackbar('🎉 发布成功！所有用户刷新后将看到最新内容');
+      } catch (error) {
+        console.error('发布失败', error);
+        showSnackbar('❌ 发布失败，请检查网络或 Bin 权限', true);
       }
     }
 
@@ -264,7 +282,7 @@
     function renderSettingView() {
       if (!settingAuthenticated) return setView('home');
       
-      let sourceText = { local: '💾 本地存储', url: '🔗 来自分享链接', default: '📄 默认配置' }[configSource];
+      let sourceText = { cloud: '☁️ 云端配置', local: '💾 本地存储', default: '📄 默认配置' }[configSource];
       
       let partsHtml = '';
       config.gameParts.forEach(part => {
@@ -305,11 +323,15 @@
           </div>
           
           <div class="setting-section">
-            <div class="setting-title"><i class="fas fa-share-alt"></i> 跨设备同步</div>
-            <p style="margin-bottom:16px;">💡 <strong>想让别人看到您的设置？</strong><br>点击下方按钮复制链接，发给任何人打开即可同步！</p>
+            <div class="setting-title"><i class="fas fa-cloud-upload-alt"></i> 云端同步</div>
+            <p style="margin-bottom:16px;">💡 修改完成后，点击下方按钮立即发布到云端，所有用户刷新后即可看到最新内容。</p>
             <div class="flex-row">
-              <button class="btn-primary" id="copyShareLinkBtn"><i class="fas fa-copy"></i> 复制分享链接</button>
-              <button class="btn-outline" id="resetToUrlConfigBtn"><i class="fas fa-sync-alt"></i> 重置为分享配置</button>
+              <button class="btn-primary" id="publishCloudBtn"><i class="fas fa-cloud-upload-alt"></i> 发布到云端</button>
+              <button class="btn-outline" id="forceRefreshCloudBtn"><i class="fas fa-sync-alt"></i> 从云端重新加载</button>
+            </div>
+            <div class="sync-status">
+              <i class="fas fa-info-circle"></i> 
+              <span>当前使用：${sourceText}</span>
             </div>
             <hr style="margin: 24px 0; border: none; border-top: 1px solid #ddd;">
             <div class="flex-row">
@@ -324,7 +346,7 @@
           </div>
         </div>`;
 
-      // 实时保存
+      // 实时本地保存（不自动发布）
       viewContainer.querySelectorAll('input, textarea').forEach(el => {
         el.addEventListener('input', (e) => {
           const field = e.target.dataset.field;
@@ -343,6 +365,11 @@
             }
           }
           debouncedSave();
+          // 标记配置来源为本地修改
+          if (configSource === 'cloud') {
+            configSource = 'local';
+            document.querySelector('.config-source-badge').innerHTML = '<i class="fas fa-database"></i> 配置来源：💾 本地存储（未发布）';
+          }
         });
       });
 
@@ -378,8 +405,11 @@
       };
       document.getElementById('logoutSettingBtn').onclick = ()=>{ settingAuthenticated = false; setView('home'); };
       
-      document.getElementById('copyShareLinkBtn').onclick = copyShareLink;
-      document.getElementById('resetToUrlConfigBtn').onclick = resetToUrlConfig;
+      document.getElementById('publishCloudBtn').onclick = publishToCloud;
+      document.getElementById('forceRefreshCloudBtn').onclick = async ()=>{
+        await loadConfigFromCloud();
+        renderSettingView();
+      };
       
       document.getElementById('exportConfigBtn').onclick = ()=>{
         const blob = new Blob([JSON.stringify(config, null, 2)], {type: 'application/json'});
@@ -414,11 +444,8 @@
     cancelPassword.onclick = hidePasswordModal;
     passwordInput.onkeypress = (e)=> { if(e.key==='Enter') submitPassword.click(); };
     
-    // 加载顺序：先看 URL，再读 localStorage
-    const hasUrlConfig = tryLoadConfigFromUrl();
-    if (!hasUrlConfig) {
-      loadConfigFromStorage();
-    }
+    // 启动时优先从云端加载
+    loadConfigFromCloud();
     setView('home');
   })();
 </script>
