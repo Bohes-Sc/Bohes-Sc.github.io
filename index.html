@@ -3,10 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-  <title>English Integrated Web · 增强版</title>
+  <title>English Integrated Web · 分享即同步</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <style>
-    /* 样式与之前版本保持一致，仅增加了一个轻提示 (snackbar) */
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, 'Segoe UI', Roboto, sans-serif; }
     body { background: linear-gradient(145deg, #f6f9fc 0%, #e6f0f5 100%); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 16px; }
     #app { width: 100%; max-width: 1100px; height: 90vh; max-height: 900px; background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-radius: 40px; box-shadow: 0 25px 50px -8px rgba(0, 20, 30, 0.25); border: 1px solid rgba(255,255,255,0.5); overflow: hidden; display: flex; flex-direction: column; }
@@ -49,9 +48,10 @@
     .hidden { display: none !important; }
     .empty-message { color: #6b7f94; padding: 20px; font-style: italic; }
     #snackbar { visibility: hidden; min-width: 200px; background: #1e3c72; color: white; text-align: center; border-radius: 40px; padding: 14px 24px; position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 1000; box-shadow: 0 10px 20px #00000020; }
-    #snackbar.show { visibility: visible; animation: fadein 0.3s, fadeout 0.3s 1.5s; }
+    #snackbar.show { visibility: visible; animation: fadein 0.3s, fadeout 0.3s 2.5s; }
     @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
     @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+    .config-source-badge { background: #eef3fa; padding: 8px 16px; border-radius: 40px; font-size: 0.9rem; display: inline-block; margin-bottom: 16px; }
   </style>
 </head>
 <body>
@@ -96,6 +96,7 @@
     let currentPartId = null;
     let settingAuthenticated = false;
     let passwordCallback = null;
+    let configSource = 'local'; // 'local', 'url', 'default'
 
     const viewContainer = document.getElementById('viewContainer');
     const backButton = document.getElementById('backButton');
@@ -109,37 +110,89 @@
     function showSnackbar(text) {
       snackbar.textContent = text || '⚙️ 设置已保存';
       snackbar.classList.add('show');
-      setTimeout(() => snackbar.classList.remove('show'), 2000);
+      setTimeout(() => snackbar.classList.remove('show'), 2800);
     }
 
-    // 存储操作
+    // ------ 核心：从 URL 读取分享配置 ------
+    function tryLoadConfigFromUrl() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const encoded = urlParams.get('config');
+      if (encoded) {
+        try {
+          const json = atob(decodeURIComponent(encoded));
+          const imported = JSON.parse(json);
+          config = { ...DEFAULT_CONFIG, ...imported };
+          if (!config.gameParts || !Array.isArray(config.gameParts)) config.gameParts = DEFAULT_CONFIG.gameParts;
+          configSource = 'url';
+          // 将 URL 配置也存入 localStorage，方便后续离线使用
+          localStorage.setItem('english_integrated_config', JSON.stringify(config));
+          showSnackbar('✨ 已加载分享配置');
+          return true;
+        } catch (e) {
+          console.warn('URL 配置解析失败，使用本地存储');
+        }
+      }
+      return false;
+    }
+
     function loadConfigFromStorage() {
       const stored = localStorage.getItem('english_integrated_config');
-      if(stored) {
+      if (stored) {
         try {
           const parsed = JSON.parse(stored);
           config = { ...DEFAULT_CONFIG, ...parsed };
-          if(!config.gameParts || !Array.isArray(config.gameParts)) config.gameParts = DEFAULT_CONFIG.gameParts;
-        } catch(e){ config = JSON.parse(JSON.stringify(DEFAULT_CONFIG)); }
-      } else {
-        config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
-        saveConfigToStorage();
+          if (!config.gameParts || !Array.isArray(config.gameParts)) config.gameParts = DEFAULT_CONFIG.gameParts;
+          configSource = 'local';
+          return;
+        } catch (e) {}
       }
+      // 没有存储时用默认
+      config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+      configSource = 'default';
+      saveConfigToStorage(true);
     }
 
     function saveConfigToStorage(silent = false) {
       localStorage.setItem('english_integrated_config', JSON.stringify(config));
-      if(!silent) showSnackbar();
+      configSource = 'local';
+      if (!silent) showSnackbar();
     }
 
-    // 实时保存防抖
     let saveTimer;
     function debouncedSave() {
       clearTimeout(saveTimer);
       saveTimer = setTimeout(() => saveConfigToStorage(false), 300);
     }
 
-    // 生成ID
+    // 生成分享链接（压缩配置到 URL）
+    function generateShareUrl() {
+      const jsonStr = JSON.stringify(config);
+      const encoded = btoa(encodeURIComponent(jsonStr).replace(/%([0-9A-F]{2})/g, (match, p1) => String.fromCharCode('0x' + p1)));
+      const url = new URL(window.location.href);
+      url.searchParams.set('config', encoded);
+      return url.toString();
+    }
+
+    function copyShareLink() {
+      const link = generateShareUrl();
+      navigator.clipboard?.writeText(link).then(() => {
+        showSnackbar('🔗 分享链接已复制！发给别人就能看到你的设置');
+      }).catch(() => {
+        prompt('手动复制以下链接（发给别人即可同步设置）：', link);
+      });
+    }
+
+    // 重置为当前 URL 中的配置（如果有）
+    function resetToUrlConfig() {
+      if (tryLoadConfigFromUrl()) {
+        renderCurrentView();
+        showSnackbar('✅ 已重置为分享链接中的配置');
+      } else {
+        showSnackbar('当前没有分享配置');
+      }
+    }
+
+    // ---------- 工具函数 ----------
     function generateId(prefix = 'id') {
       return prefix + '-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6);
     }
@@ -175,7 +228,7 @@
       });
     }
 
-    // 渲染各视图 (home/game/partDetail与之前基本一致，仅setting增强)
+    // ---------- 渲染视图 ----------
     function renderHomeView() {
       viewContainer.innerHTML = `
         <div class="home-grid">
@@ -208,9 +261,11 @@
       }));
     }
 
-    // ---------- 增强版 Setting (带导入/导出) ----------
     function renderSettingView() {
       if (!settingAuthenticated) return setView('home');
+      
+      let sourceText = { local: '💾 本地存储', url: '🔗 来自分享链接', default: '📄 默认配置' }[configSource];
+      
       let partsHtml = '';
       config.gameParts.forEach(part => {
         let gamesHtml = '';
@@ -231,12 +286,15 @@
 
       viewContainer.innerHTML = `
         <div>
+          <div class="config-source-badge"><i class="fas fa-database"></i> 配置来源：${sourceText}</div>
+          
           <div class="setting-section">
             <div class="setting-title"><i class="fas fa-key"></i> 基础设置</div>
             <div class="input-group"><label>设置密码</label><input type="text" id="settingPwd" value="${config.settingPassword}"></div>
             <div class="input-group"><label>AI Talk链接</label><input type="text" id="aiTalkUrl" value="${config.aiTalkUrl}"></div>
             <div class="input-group"><label>ClassIn链接</label><input type="text" id="classInUrl" value="${config.classInUrl}"></div>
           </div>
+          
           <div class="setting-section">
             <div class="setting-title"><i class="fas fa-layer-group"></i> 部件与游戏管理</div>
             ${partsHtml}
@@ -245,64 +303,69 @@
               <button class="btn-outline" id="resetDefaultBtn"><i class="fas fa-undo-alt"></i> 重置默认</button>
             </div>
           </div>
+          
           <div class="setting-section">
-            <div class="setting-title"><i class="fas fa-database"></i> 备份与恢复</div>
+            <div class="setting-title"><i class="fas fa-share-alt"></i> 跨设备同步</div>
+            <p style="margin-bottom:16px;">💡 <strong>想让别人看到您的设置？</strong><br>点击下方按钮复制链接，发给任何人打开即可同步！</p>
             <div class="flex-row">
-              <button class="btn-primary" id="exportConfigBtn"><i class="fas fa-download"></i> 导出配置</button>
-              <label class="btn-outline" for="importFileInput" style="cursor:pointer;"><i class="fas fa-upload"></i> 导入配置</label>
+              <button class="btn-primary" id="copyShareLinkBtn"><i class="fas fa-copy"></i> 复制分享链接</button>
+              <button class="btn-outline" id="resetToUrlConfigBtn"><i class="fas fa-sync-alt"></i> 重置为分享配置</button>
+            </div>
+            <hr style="margin: 24px 0; border: none; border-top: 1px solid #ddd;">
+            <div class="flex-row">
+              <button class="btn-outline" id="exportConfigBtn"><i class="fas fa-download"></i> 导出JSON</button>
+              <label class="btn-outline" for="importFileInput" style="cursor:pointer;"><i class="fas fa-upload"></i> 导入JSON</label>
               <input type="file" id="importFileInput" accept=".json,application/json" style="display:none;">
             </div>
-            <p style="margin-top:12px; opacity:0.7;">导入配置将覆盖当前所有设置，请谨慎操作。</p>
           </div>
+          
           <div class="flex-row" style="justify-content:flex-end;">
             <button class="btn-primary" id="logoutSettingBtn">退出设置</button>
           </div>
         </div>`;
 
-      // ---- 实时保存监听 (使用input + 防抖) ----
-      const debouncedSaveConfig = () => { clearTimeout(saveTimer); saveTimer = setTimeout(()=> saveConfigToStorage(false), 300); };
+      // 实时保存
       viewContainer.querySelectorAll('input, textarea').forEach(el => {
         el.addEventListener('input', (e) => {
           const field = e.target.dataset.field;
           const partId = e.target.dataset.partId;
           const gameId = e.target.dataset.gameId;
-          if (!partId && !e.target.id) { // 基础链接字段
-            if (e.target.id === 'settingPwd') config.settingPassword = e.target.value;
-            else if (e.target.id === 'aiTalkUrl') config.aiTalkUrl = e.target.value;
-            else if (e.target.id === 'classInUrl') config.classInUrl = e.target.value;
-            debouncedSaveConfig();
-            return;
+          if (!partId && !e.target.id) return;
+          if (e.target.id === 'settingPwd') config.settingPassword = e.target.value;
+          else if (e.target.id === 'aiTalkUrl') config.aiTalkUrl = e.target.value;
+          else if (e.target.id === 'classInUrl') config.classInUrl = e.target.value;
+          else if (partId) {
+            const part = config.gameParts.find(p=>p.id===partId);
+            if (part) {
+              if (field==='partName') part.name = e.target.value;
+              else if (field==='gameName'&&gameId) { const g = part.games.find(g=>g.id===gameId); if(g) g.name = e.target.value; }
+              else if (field==='embedCode'&&gameId) { const g = part.games.find(g=>g.id===gameId); if(g) g.embedCode = e.target.value; }
+            }
           }
-          const part = config.gameParts.find(p=>p.id===partId);
-          if(part) {
-            if(field==='partName') part.name = e.target.value;
-            else if(field==='gameName'&&gameId){ const g=part.games.find(g=>g.id===gameId); if(g) g.name=e.target.value; }
-            else if(field==='embedCode'&&gameId){ const g=part.games.find(g=>g.id===gameId); if(g) g.embedCode=e.target.value; }
-            debouncedSaveConfig();
-          }
+          debouncedSave();
         });
       });
 
-      // 按钮事件
       viewContainer.addEventListener('click', e => {
         const btn = e.target.closest('[data-action]');
-        if(!btn) return;
-        const action = btn.dataset.action, partId = btn.dataset.partId, gameId = btn.dataset.gameId;
-        if(action==='addGame') {
-          const part = config.gameParts.find(p=>p.id===partId);
-          part.games.push({ id: generateId('game'), name: '新游戏', embedCode: '<iframe width="500" height="380" src="https://"></iframe>' });
-          saveConfigToStorage(); renderSettingView();
-        } else if(action==='deleteGame') {
-          const part = config.gameParts.find(p=>p.id===partId);
-          part.games = part.games.filter(g=>g.id!==gameId);
-          saveConfigToStorage(); renderSettingView();
-        } else if(action==='deletePart') {
-          if(config.gameParts.length<=1) return alert('至少保留一个Part');
-          config.gameParts = config.gameParts.filter(p=>p.id!==partId);
-          saveConfigToStorage(); renderSettingView();
-        } else if(action==='renamePart') {
-          const n = prompt('新名称', config.gameParts.find(p=>p.id===partId)?.name);
-          if(n) { const p = config.gameParts.find(p=>p.id===partId); p.name=n; saveConfigToStorage(); renderSettingView(); }
+        if (btn) {
+          const action = btn.dataset.action, partId = btn.dataset.partId, gameId = btn.dataset.gameId;
+          if (action==='addGame') {
+            const part = config.gameParts.find(p=>p.id===partId);
+            part.games.push({ id: generateId('game'), name: '新游戏', embedCode: '<iframe width="500" height="380" src="https://"></iframe>' });
+            saveConfigToStorage(); renderSettingView();
+          } else if (action==='deleteGame') {
+            const part = config.gameParts.find(p=>p.id===partId);
+            part.games = part.games.filter(g=>g.id!==gameId);
+            saveConfigToStorage(); renderSettingView();
+          } else if (action==='deletePart') {
+            if(config.gameParts.length<=1) return alert('至少保留一个Part');
+            config.gameParts = config.gameParts.filter(p=>p.id!==partId);
+            saveConfigToStorage(); renderSettingView();
+          } else if (action==='renamePart') {
+            const n = prompt('新名称', config.gameParts.find(p=>p.id===partId)?.name);
+            if (n) { const p = config.gameParts.find(p=>p.id===partId); p.name=n; saveConfigToStorage(); renderSettingView(); }
+          }
         }
       });
 
@@ -311,16 +374,17 @@
         saveConfigToStorage(); renderSettingView();
       };
       document.getElementById('resetDefaultBtn').onclick = ()=>{
-        if(confirm('重置所有设置？')) { config = JSON.parse(JSON.stringify(DEFAULT_CONFIG)); saveConfigToStorage(); renderSettingView(); }
+        if(confirm('重置为默认配置？')) { config = JSON.parse(JSON.stringify(DEFAULT_CONFIG)); saveConfigToStorage(); renderSettingView(); }
       };
       document.getElementById('logoutSettingBtn').onclick = ()=>{ settingAuthenticated = false; setView('home'); };
-
-      // 导出配置
+      
+      document.getElementById('copyShareLinkBtn').onclick = copyShareLink;
+      document.getElementById('resetToUrlConfigBtn').onclick = resetToUrlConfig;
+      
       document.getElementById('exportConfigBtn').onclick = ()=>{
         const blob = new Blob([JSON.stringify(config, null, 2)], {type: 'application/json'});
-        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `english_config_${new Date().toISOString().slice(0,10)}.json`; a.click();
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `english_config.json`; a.click();
       };
-      // 导入配置
       document.getElementById('importFileInput').onchange = (e)=>{
         const file = e.target.files[0]; if(!file) return;
         const reader = new FileReader();
@@ -349,7 +413,12 @@
     submitPassword.onclick = ()=> { if(passwordCallback) passwordCallback(passwordInput.value); };
     cancelPassword.onclick = hidePasswordModal;
     passwordInput.onkeypress = (e)=> { if(e.key==='Enter') submitPassword.click(); };
-    loadConfigFromStorage();
+    
+    // 加载顺序：先看 URL，再读 localStorage
+    const hasUrlConfig = tryLoadConfigFromUrl();
+    if (!hasUrlConfig) {
+      loadConfigFromStorage();
+    }
     setView('home');
   })();
 </script>
