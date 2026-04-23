@@ -13,6 +13,8 @@
     .nav-header h1 { font-size: 1.8rem; font-weight: 600; background: linear-gradient(135deg, #1e3c72, #2a5298); -webkit-background-clip: text; background-clip: text; color: transparent; flex: 1; }
     .back-btn { background: white; border: none; width: 44px; height: 44px; border-radius: 30px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 8px rgba(0,0,0,0.05); color: #1e3c72; font-size: 1.4rem; cursor: pointer; transition: 0.2s; border: 1px solid rgba(255,255,255,0.8); }
     .back-btn:hover { background: #1e3c72; color: white; }
+    .cloud-refresh-btn { background: white; border: none; width: 44px; height: 44px; border-radius: 30px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 8px rgba(0,0,0,0.05); color: #1e3c72; font-size: 1.4rem; cursor: pointer; transition: 0.2s; border: 1px solid rgba(255,255,255,0.8); }
+    .cloud-refresh-btn:hover { background: #2a5298; color: white; }
     .view-container { flex: 1; padding: 24px; overflow-y: auto; }
     .home-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; padding: 16px 8px; }
     .big-btn { background: white; border-radius: 32px; padding: 32px 16px; box-shadow: 0 12px 24px -8px rgba(0,32,64,0.12); border: 1px solid rgba(255,255,255,0.9); display: flex; flex-direction: column; align-items: center; gap: 16px; cursor: pointer; transition: 0.2s; color: #1e2f4b; }
@@ -52,7 +54,6 @@
     @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
     @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
     .config-source-badge { background: #eef3fa; padding: 8px 16px; border-radius: 40px; font-size: 0.9rem; display: inline-block; margin-bottom: 16px; }
-    .sync-status { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 0.9rem; }
   </style>
 </head>
 <body>
@@ -60,7 +61,7 @@
   <div class="nav-header">
     <button class="back-btn" id="backButton"><i class="fas fa-arrow-left"></i></button>
     <h1>📘 English Integrated Web</h1>
-    <div style="width:44px;"></div>
+    <button class="cloud-refresh-btn" id="cloudRefreshBtn" title="从云端刷新最新配置"><i class="fas fa-cloud-upload-alt"></i></button>
   </div>
   <div id="viewContainer" class="view-container"></div>
 </div>
@@ -75,7 +76,7 @@
     <p id="passwordError" style="color:#c0392b; margin-top:12px;"></p>
   </div>
 </div>
-<div id="snackbar">⚙️ 设置已保存</div>
+<div id="snackbar">⚙️ 操作完成</div>
 
 <script>
   (function(){
@@ -103,10 +104,10 @@
     let settingAuthenticated = false;
     let passwordCallback = null;
     let configSource = 'local'; // 'cloud', 'local', 'default'
-    let cloudConfigLoaded = false;
 
     const viewContainer = document.getElementById('viewContainer');
     const backButton = document.getElementById('backButton');
+    const cloudRefreshBtn = document.getElementById('cloudRefreshBtn');
     const passwordModal = document.getElementById('passwordModal');
     const passwordInput = document.getElementById('passwordInput');
     const submitPassword = document.getElementById('submitPassword');
@@ -124,10 +125,10 @@
       }, 2800);
     }
 
-    // ---------- 从云端加载配置 ----------
-    async function loadConfigFromCloud() {
+    // ---------- 从云端加载配置（公开方法，可用于首页刷新）----------
+    async function loadConfigFromCloud(showSuccess = true) {
       try {
-        showSnackbar('☁️ 正在从云端加载配置...');
+        if (showSuccess) showSnackbar('☁️ 正在从云端加载配置...');
         const response = await fetch(`${BIN_URL}/latest`, {
           headers: { 'X-Access-Key': ACCESS_KEY }
         });
@@ -135,22 +136,23 @@
         const data = await response.json();
         const cloudConfig = data.record;
         
-        // 合并云端配置
         config = { ...DEFAULT_CONFIG, ...cloudConfig };
         if (!config.gameParts || !Array.isArray(config.gameParts)) {
           config.gameParts = DEFAULT_CONFIG.gameParts;
         }
         configSource = 'cloud';
-        cloudConfigLoaded = true;
         
         // 保存到本地存储作为备份
         localStorage.setItem('english_integrated_config', JSON.stringify(config));
-        showSnackbar('✅ 云端配置加载成功');
+        if (showSuccess) showSnackbar('✅ 云端配置加载成功');
+        
+        // 重新渲染当前视图
         renderCurrentView();
+        return true;
       } catch (error) {
-        console.warn('云端加载失败，尝试使用本地存储', error);
-        loadConfigFromStorage();
-        showSnackbar('⚠️ 云端连接失败，使用本地缓存', true);
+        console.warn('云端加载失败', error);
+        if (showSuccess) showSnackbar('⚠️ 云端连接失败，使用本地缓存', true);
+        return false;
       }
     }
 
@@ -200,10 +202,8 @@
         });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         configSource = 'cloud';
-        cloudConfigLoaded = true;
-        // 同步保存本地
         localStorage.setItem('english_integrated_config', JSON.stringify(config));
-        showSnackbar('🎉 发布成功！所有用户刷新后将看到最新内容');
+        showSnackbar('🎉 发布成功！学生点击右上角☁️即可更新');
       } catch (error) {
         console.error('发布失败', error);
         showSnackbar('❌ 发布失败，请检查网络或 Bin 权限', true);
@@ -323,16 +323,9 @@
           </div>
           
           <div class="setting-section">
-            <div class="setting-title"><i class="fas fa-cloud-upload-alt"></i> 云端同步</div>
-            <p style="margin-bottom:16px;">💡 修改完成后，点击下方按钮立即发布到云端，所有用户刷新后即可看到最新内容。</p>
-            <div class="flex-row">
-              <button class="btn-primary" id="publishCloudBtn"><i class="fas fa-cloud-upload-alt"></i> 发布到云端</button>
-              <button class="btn-outline" id="forceRefreshCloudBtn"><i class="fas fa-sync-alt"></i> 从云端重新加载</button>
-            </div>
-            <div class="sync-status">
-              <i class="fas fa-info-circle"></i> 
-              <span>当前使用：${sourceText}</span>
-            </div>
+            <div class="setting-title"><i class="fas fa-cloud-upload-alt"></i> 云端发布</div>
+            <p style="margin-bottom:16px;">💡 修改完成后，点击下方按钮立即发布。学生在首页点击右上角☁️即可获取最新内容。</p>
+            <button class="btn-primary" id="publishCloudBtn"><i class="fas fa-cloud-upload-alt"></i> 发布到云端</button>
             <hr style="margin: 24px 0; border: none; border-top: 1px solid #ddd;">
             <div class="flex-row">
               <button class="btn-outline" id="exportConfigBtn"><i class="fas fa-download"></i> 导出JSON</button>
@@ -346,7 +339,7 @@
           </div>
         </div>`;
 
-      // 实时本地保存（不自动发布）
+      // 实时保存（仅本地）
       viewContainer.querySelectorAll('input, textarea').forEach(el => {
         el.addEventListener('input', (e) => {
           const field = e.target.dataset.field;
@@ -365,11 +358,7 @@
             }
           }
           debouncedSave();
-          // 标记配置来源为本地修改
-          if (configSource === 'cloud') {
-            configSource = 'local';
-            document.querySelector('.config-source-badge').innerHTML = '<i class="fas fa-database"></i> 配置来源：💾 本地存储（未发布）';
-          }
+          if (configSource === 'cloud') configSource = 'local';
         });
       });
 
@@ -404,12 +393,7 @@
         if(confirm('重置为默认配置？')) { config = JSON.parse(JSON.stringify(DEFAULT_CONFIG)); saveConfigToStorage(); renderSettingView(); }
       };
       document.getElementById('logoutSettingBtn').onclick = ()=>{ settingAuthenticated = false; setView('home'); };
-      
       document.getElementById('publishCloudBtn').onclick = publishToCloud;
-      document.getElementById('forceRefreshCloudBtn').onclick = async ()=>{
-        await loadConfigFromCloud();
-        renderSettingView();
-      };
       
       document.getElementById('exportConfigBtn').onclick = ()=>{
         const blob = new Blob([JSON.stringify(config, null, 2)], {type: 'application/json'});
@@ -438,14 +422,22 @@
       else if (currentView === 'setting') renderSettingView();
     }
 
-    // 初始化
+    // ---------- 初始化 ----------
     backButton.onclick = goBack;
+    
+    // 云端刷新按钮（首页右上角，无需密码）
+    cloudRefreshBtn.onclick = () => {
+      loadConfigFromCloud(true);
+    };
+
     submitPassword.onclick = ()=> { if(passwordCallback) passwordCallback(passwordInput.value); };
     cancelPassword.onclick = hidePasswordModal;
     passwordInput.onkeypress = (e)=> { if(e.key==='Enter') submitPassword.click(); };
     
-    // 启动时优先从云端加载
-    loadConfigFromCloud();
+    // 启动：优先尝试加载云端配置，失败则用本地
+    loadConfigFromCloud(true).catch(() => {
+      loadConfigFromStorage();
+    });
     setView('home');
   })();
 </script>
