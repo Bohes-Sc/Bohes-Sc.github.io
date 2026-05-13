@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-  <title>English Integrated Web · 云端同步版</title>
+  <title>AI Time</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, 'Segoe UI', Roboto, sans-serif; }
@@ -61,7 +61,7 @@
 <div id="app">
   <div class="nav-header">
     <button class="back-btn" id="backButton"><i class="fas fa-arrow-left"></i></button>
-    <h1>📘 English Integrated Web</h1>
+    <h1>📘 AI Time</h1>
     <button class="cloud-refresh-btn" id="cloudRefreshBtn" title="从云端刷新最新配置"><i class="fas fa-cloud-upload-alt"></i></button>
   </div>
   <div id="viewContainer" class="view-container"></div>
@@ -91,7 +91,7 @@
     const BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
 
     const DEFAULT_CONFIG = {
-      settingPassword: "1234",
+      settingPassword: "9014",
       aiTalkUrl: "https://weixin.qq.com/",
       classInUrl: "https://www.classin.com/",
       discussionUrl: "https://discussion.example.com/",   // 新增 Discussion 链接
@@ -284,9 +284,9 @@
       viewContainer.innerHTML = `
         <div class="home-grid">
           <div class="big-btn" id="navGame"><i class="fas fa-gamepad"></i><span>Game</span></div>
-          <div class="big-btn" id="navAITalk"><i class="fas fa-comment-dots"></i><span>AI Talk</span></div>
+          <div class="big-btn" id="navAITalk"><i class="fas fa-comment-dots"></i><span>Role-Play</span></div>
           <div class="big-btn" id="navClassIn"><i class="fas fa-chalkboard-teacher"></i><span>Class In</span></div>
-          <div class="big-btn" id="navDiscussion"><i class="fas fa-comments"></i><span>Discussion</span></div>
+          <div class="big-btn" id="navDiscussion"><i class="fas fa-comments"></i><span>AI Talk</span></div>
         </div>`;
       document.getElementById('navGame').onclick = ()=> setView('game');
       document.getElementById('navAITalk').onclick = ()=> setView('aitalk');
@@ -298,7 +298,7 @@
       const buttons = config.aiTalkButtons || [];
       let buttonsHtml = '';
       if (buttons.length === 0) {
-        buttonsHtml = `<p class="empty-message"><i class="fas fa-info-circle"></i> 暂无 AI Talk 链接，请老师添加。</p>`;
+        buttonsHtml = `<p class="empty-message"><i class="fas fa-info-circle"></i> 暂无Role Play AI 链接，请老师添加。</p>`;
       } else {
         buttonsHtml = buttons.map(btn => `
           <div class="aitalk-btn" data-url="${btn.url.replace(/"/g, '&quot;')}">
@@ -361,11 +361,11 @@
               <button class="btn-icon" data-action="deleteAiTalk" data-btn-id="${btn.id}"><i class="fas fa-trash"></i></button>
             </div>
             <div class="input-group">
-              <label>按钮名称</label>
+              <label>重命名</label>
               <input type="text" data-field="aiTalkName" data-btn-id="${btn.id}" value="${btn.name.replace(/"/g, '&quot;')}">
             </div>
             <div class="input-group">
-              <label>跳转链接</label>
+              <label>导入链接</label>
               <input type="text" data-field="aiTalkUrl" data-btn-id="${btn.id}" value="${btn.url.replace(/"/g, '&quot;')}">
             </div>
           </div>
@@ -399,14 +399,14 @@
             <div class="setting-title"><i class="fas fa-key"></i> 基础设置</div>
             <div class="input-group"><label>设置密码</label><input type="text" id="settingPwd" value="${config.settingPassword}"></div>
             <div class="input-group"><label>ClassIn链接</label><input type="text" id="classInUrl" value="${config.classInUrl}"></div>
-            <div class="input-group"><label>Discussion链接</label><input type="text" id="discussionUrl" value="${config.discussionUrl}"></div>
+            <div class="input-group"><label>AI Talk链接</label><input type="text" id="discussionUrl" value="${config.discussionUrl}"></div>
           </div>
           
           <div class="setting-section">
-            <div class="setting-title"><i class="fas fa-comment-dots"></i> AI Talk 按钮管理</div>
-            <p style="margin-bottom:16px;">添加、编辑或删除 AI Talk 页面的跳转按钮。</p>
+            <div class="setting-title"><i class="fas fa-comment-dots"></i> Role Play AI 按钮管理</div>
+            <p style="margin-bottom:16px;">添加、编辑或删除 Role Play AI 页面的跳转按钮。</p>
             ${aiTalkHtml}
-            <button class="btn-outline" data-action="addAiTalk"><i class="fas fa-plus-circle"></i> 添加 AI Talk 按钮</button>
+            <button class="btn-outline" data-action="addAiTalk"><i class="fas fa-plus-circle"></i> 添加 Role Play AI 按钮</button>
           </div>
 
           <div class="setting-section">
