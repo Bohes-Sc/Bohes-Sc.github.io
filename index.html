@@ -431,7 +431,7 @@
       const part = config.gameParts.find(p=>p.id===currentPartId);
       if(!part) return setView('game');
       const games = part.games||[];
-      viewContainer.innerHTML = `<div><h2>${part.name}</h2><div class="games-list">${games.map(g=>`<div class="game-btn" data-game-id="${g.id}"><i class="fas fa-play-circle"></i>${g.name}</div>`).join('')}</div><div id="iframeDisplay" class="iframe-container">点击游戏加载</div></div>`;
+      viewContainer.innerHTML = `<div><h2>${part.name}</h2><div class="games-list">${games.map(g=>`<div class="game-btn" data-game-id="${g.id}"><i class="fas fa-play-circle"></i>${g.name}</div>`).join('')}</div><div id="iframeDisplay" class="iframe-container">Click To Load</div></div>`;
       const iframeDiv = document.getElementById('iframeDisplay');
       document.querySelectorAll('.game-btn').forEach(b=> b.addEventListener('click', ()=>{
         const g = part.games.find(g=>g.id===b.dataset.gameId);
