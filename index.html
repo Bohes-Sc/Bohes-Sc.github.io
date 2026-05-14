@@ -450,15 +450,15 @@
         aiTalkHtml += `
           <div class="aitalk-editor-item">
             <div class="flex-row" style="justify-content:space-between;">
-              <strong><i class="fas fa-link"></i> 按钮 ${idx+1}</strong>
+              <strong><i class="fas fa-link"></i> Role Play AI ${idx+1}</strong>
               <button class="btn-icon" data-action="deleteAiTalk" data-btn-id="${btn.id}"><i class="fas fa-trash"></i></button>
             </div>
             <div class="input-group">
-              <label>重命名</label>
+              <label>Rename</label>
               <input type="text" data-field="aiTalkName" data-btn-id="${btn.id}" value="${btn.name.replace(/"/g, '&quot;')}">
             </div>
             <div class="input-group">
-              <label>导入链接</label>
+              <label>Input Link</label>
               <input type="text" data-field="aiTalkUrl" data-btn-id="${btn.id}" value="${btn.url.replace(/"/g, '&quot;')}">
             </div>
           </div>
@@ -472,13 +472,13 @@
         (part.games||[]).forEach(game => {
           gamesHtml += `<div class="game-editor-item">
             <div class="flex-row"><strong>${game.name}</strong><button class="btn-icon" data-action="deleteGame" data-part-id="${part.id}" data-game-id="${game.id}"><i class="fas fa-trash"></i></button></div>
-            <div class="input-group"><label>名称</label><input type="text" data-part-id="${part.id}" data-game-id="${game.id}" data-field="gameName" value="${game.name.replace(/"/g,'&quot;')}"></div>
-            <div class="input-group"><label>嵌入代码</label><textarea rows="3" data-part-id="${part.id}" data-game-id="${game.id}" data-field="embedCode">${game.embedCode.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea></div>
+            <div class="input-group"><label>Game ID</label><input type="text" data-part-id="${part.id}" data-game-id="${game.id}" data-field="gameName" value="${game.name.replace(/"/g,'&quot;')}"></div>
+            <div class="input-group"><label>Embed Code</label><textarea rows="3" data-part-id="${part.id}" data-game-id="${game.id}" data-field="embedCode">${game.embedCode.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea></div>
           </div>`;
         });
         partsHtml += `<div class="part-editor">
           <div class="flex-row"><h3>${part.name}</h3><div><button class="btn-icon" data-action="renamePart" data-part-id="${part.id}"><i class="fas fa-pen"></i></button><button class="btn-icon" data-action="deletePart" data-part-id="${part.id}"><i class="fas fa-trash-alt"></i></button></div></div>
-          <div class="input-group"><label>Part名称</label><input type="text" data-part-id="${part.id}" data-field="partName" value="${part.name}"></div>
+          <div class="input-group"><label>Part Title</label><input type="text" data-part-id="${part.id}" data-field="partName" value="${part.name}"></div>
           ${gamesHtml}
           <button class="btn-outline" data-action="addGame" data-part-id="${part.id}"><i class="fas fa-plus"></i> 添加游戏</button>
         </div>`;
@@ -489,21 +489,21 @@
           <div class="config-source-badge"><i class="fas fa-database"></i> 配置来源：${sourceText}</div>
           
           <div class="setting-section">
-            <div class="setting-title"><i class="fas fa-key"></i> 基础设置</div>
-            <div class="input-group"><label>设置密码</label><input type="text" id="settingPwd" value="${config.settingPassword}"></div>
-            <div class="input-group"><label>ClassIn链接</label><input type="text" id="classInUrl" value="${config.classInUrl}"></div>
-            <div class="input-group"><label>AI Talk链接</label><input type="text" id="discussionUrl" value="${config.discussionUrl}"></div>
+            <div class="setting-title"><i class="fas fa-key"></i> General Setup</div>
+            <div class="input-group"><label>Set Password</label><input type="text" id="settingPwd" value="${config.settingPassword}"></div>
+            <div class="input-group"><label>ClassIn Link</label><input type="text" id="classInUrl" value="${config.classInUrl}"></div>
+            <div class="input-group"><label>AI Talk Link</label><input type="text" id="discussionUrl" value="${config.discussionUrl}"></div>
           </div>
           
           <div class="setting-section">
-            <div class="setting-title"><i class="fas fa-comment-dots"></i> Role Play AI 按钮管理</div>
-            <p style="margin-bottom:16px;">添加、编辑或删除 Role Play AI 页面的跳转按钮。</p>
+            <div class="setting-title"><i class="fas fa-comment-dots"></i> Role Play AI Management</div>
+            <p style="margin-bottom:16px;">Add or Remove Role Play AI</p>
             ${aiTalkHtml}
-            <button class="btn-outline" data-action="addAiTalk"><i class="fas fa-plus-circle"></i> 添加 Role Play AI 按钮</button>
+            <button class="btn-outline" data-action="addAiTalk"><i class="fas fa-plus-circle"></i> Add Role Play AI</button>
           </div>
 
           <div class="setting-section">
-            <div class="setting-title"><i class="fas fa-layer-group"></i> 部件与游戏管理</div>
+            <div class="setting-title"><i class="fas fa-layer-group"></i> Game Management</div>
             ${partsHtml}
             <div class="flex-row" style="margin-top:20px">
               <button class="btn-primary" data-action="addPart"><i class="fas fa-plus"></i> 新建Part</button>
@@ -512,19 +512,19 @@
           </div>
           
           <div class="setting-section">
-            <div class="setting-title"><i class="fas fa-cloud-upload-alt"></i> 云端发布</div>
-            <p style="margin-bottom:16px;">修改完成后，点击下方按钮立即发布。学生在首页点击右上角☁️即可获取最新内容。</p>
-            <button class="btn-primary" data-action="publishToCloud"><i class="fas fa-cloud-upload-alt"></i> 发布到云端</button>
+            <div class="setting-title"><i class="fas fa-cloud-upload-alt"></i> Publish to Cloud</div>
+            <p style="margin-bottom:16px;">Click the button below to publish☁️</p>
+            <button class="btn-primary" data-action="publishToCloud"><i class="fas fa-cloud-upload-alt"></i> One-Click Publish</button>
             <hr style="margin: 24px 0; border: none; border-top: 1px solid #ddd;">
             <div class="flex-row">
-              <button class="btn-outline" data-action="exportConfig"><i class="fas fa-download"></i> 导出JSON</button>
-              <label class="btn-outline" for="importFileInput" style="cursor:pointer;"><i class="fas fa-upload"></i> 导入JSON</label>
+              <button class="btn-outline" data-action="exportConfig"><i class="fas fa-download"></i> Export JSON</button>
+              <label class="btn-outline" for="importFileInput" style="cursor:pointer;"><i class="fas fa-upload"></i> Import JSON</label>
               <input type="file" id="importFileInput" accept=".json,application/json" style="display:none;">
             </div>
           </div>
           
           <div class="flex-row" style="justify-content:flex-end;">
-            <button class="btn-primary" data-action="logoutSetting">退出设置</button>
+            <button class="btn-primary" data-action="logoutSetting">Exit Settings</button>
           </div>
         </div>`;
 
