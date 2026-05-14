@@ -61,10 +61,10 @@
   <div class="nav-header">
     <button class="back-btn" id="backButton"><i class="fas fa-arrow-left"></i></button>
     <h1>📘 AI Time</h1>
-    <button class="cloud-refresh-btn" id="cloudRefreshBtn" title="从云端刷新最新配置"><i class="fas fa-cloud-upload-alt"></i></button>
+    <button class="cloud-refresh-btn" id="cloudRefreshBtn" title="Sync Cloud Config"><i class="fas fa-cloud-upload-alt"></i></button>
   </div>
   <div id="viewContainer" class="view-container"></div>
-  <button id="settingCornerBtn" class="setting-corner-btn" title="设置"><i class="fas fa-cog"></i></button>
+  <button id="settingCornerBtn" class="setting-corner-btn" title="Setting"><i class="fas fa-cog"></i></button>
 </div>
 <div id="passwordModal" class="password-modal hidden">
   <div class="modal-card">
@@ -77,7 +77,7 @@
     <p id="passwordError" style="color:#c0392b; margin-top:12px;"></p>
   </div>
 </div>
-<div id="snackbar">⚙️ 操作完成</div>
+<div id="snackbar">⚙️ Operation Completed</div>
 
 <script>
   (function(){
@@ -120,7 +120,7 @@
     const snackbar = document.getElementById('snackbar');
 
     function showSnackbar(text, isError = false) {
-      snackbar.textContent = text || '⚙️ 操作完成';
+      snackbar.textContent = text || '⚙️ Operation Completed';
       snackbar.style.background = isError ? '#b53b3b' : '#1e3c72';
       snackbar.classList.add('show');
       setTimeout(() => {
@@ -143,7 +143,7 @@
         if (cfg.aiTalkUrl && cfg.aiTalkUrl.trim() !== '') {
           cfg.aiTalkButtons.push({
             id: generateId('aitalk'),
-            name: 'AI Talk 链接',
+            name: 'AI Talk Link',
             url: cfg.aiTalkUrl
           });
         }
@@ -159,7 +159,7 @@
 
     async function loadConfigFromCloud(showSuccess = true) {
       try {
-        if (showSuccess) showSnackbar('☁️ 正在从云端加载配置...');
+        if (showSuccess) showSnackbar('☁️ Loading Cloud Config...');
         const response = await fetch(`${BIN_URL}/latest`, {
           headers: { 'X-Access-Key': ACCESS_KEY }
         });
@@ -172,12 +172,12 @@
         configSource = 'cloud';
         
         localStorage.setItem('english_integrated_config', JSON.stringify(config));
-        if (showSuccess) showSnackbar('✅ 云端配置加载成功');
+        if (showSuccess) showSnackbar('✅ Load Success');
         renderCurrentView();
         return true;
       } catch (error) {
-        console.warn('云端加载失败', error);
-        if (showSuccess) showSnackbar('⚠️ 云端连接失败，使用本地缓存', true);
+        console.warn('Load Failed', error);
+        if (showSuccess) showSnackbar('⚠️ Cloud connect failed, use local cache', true);
         return false;
       }
     }
@@ -202,7 +202,7 @@
     function saveConfigToStorage(silent = false) {
       localStorage.setItem('english_integrated_config', JSON.stringify(config));
       if (!silent && configSource !== 'cloud') configSource = 'local';
-      if (!silent) showSnackbar('💾 已保存到本地');
+      if (!silent) showSnackbar('💾 Saved to local storage');
     }
 
     let saveTimer;
@@ -213,11 +213,11 @@
 
     async function publishToCloud() {
       if (!settingAuthenticated) {
-        showSnackbar('请先进入设置页面', true);
+        showSnackbar('Please access the Settings page first', true);
         return;
       }
       try {
-        showSnackbar('☁️ 正在发布到云端...');
+        showSnackbar('☁️ Uploading to cloud...');
         const response = await fetch(BIN_URL, {
           method: 'PUT',
           headers: {
@@ -229,10 +229,10 @@
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         configSource = 'cloud';
         localStorage.setItem('english_integrated_config', JSON.stringify(config));
-        showSnackbar('🎉 发布成功！学生点击右上角☁️即可更新');
+        showSnackbar('🎉 Published succeeded！Tap tpp-right corner☁️ to update');
       } catch (error) {
-        console.error('发布失败', error);
-        showSnackbar('❌ 发布失败，请检查网络或 Bin 权限', true);
+        console.error('Failed to published', error);
+        showSnackbar('❌ Published Failed. Please check network or bin access', true);
       }
     }
 
@@ -268,7 +268,7 @@
       if (settingAuthenticated) setView('setting');
       else showPasswordModal(pwd => {
         if (pwd === config.settingPassword) { settingAuthenticated = true; hidePasswordModal(); setView('setting'); }
-        else passwordError.innerText = '密码错误';
+        else passwordError.innerText = 'Password is incorrect';
       });
     }
 
@@ -281,7 +281,7 @@
 
       if (action === 'addAiTalk') {
         config.aiTalkButtons = config.aiTalkButtons || [];
-        config.aiTalkButtons.push({ id: generateId('aitalk'), name: '新按钮', url: 'https://' });
+        config.aiTalkButtons.push({ id: generateId('aitalk'), name: 'New AI', url: 'https://' });
         saveConfigToStorage();
         renderSettingView();
       }
@@ -294,7 +294,7 @@
       else if (action === 'addGame') {
         const part = config.gameParts.find(p => p.id === btn.dataset.partId);
         if (part) {
-          part.games.push({ id: generateId('game'), name: '新游戏', embedCode: '<iframe width="500" height="380" src="https://"></iframe>' });
+          part.games.push({ id: generateId('game'), name: 'New Game', embedCode: '<iframe width="500" height="380" src="https://"></iframe>' });
           saveConfigToStorage();
           renderSettingView();
         }
@@ -308,7 +308,7 @@
         }
       }
       else if (action === 'deletePart') {
-        if (config.gameParts.length <= 1) return alert('至少保留一个Part');
+        if (config.gameParts.length <= 1) return alert('Keep at least one Part');
         config.gameParts = config.gameParts.filter(p => p.id !== btn.dataset.partId);
         saveConfigToStorage();
         renderSettingView();
@@ -316,18 +316,18 @@
       else if (action === 'renamePart') {
         const part = config.gameParts.find(p => p.id === btn.dataset.partId);
         if (part) {
-          const n = prompt('新名称', part.name);
+          const n = prompt('New Name', part.name);
           if (n) { part.name = n; saveConfigToStorage(); renderSettingView(); }
         }
       }
       // 独立按钮（通过 data-action 统一处理）
       else if (action === 'addPart') {
-        config.gameParts.push({ id: generateId('part'), name: '新Part', games: [] });
+        config.gameParts.push({ id: generateId('part'), name: 'New Part', games: [] });
         saveConfigToStorage();
         renderSettingView();
       }
       else if (action === 'resetDefault') {
-        if (confirm('重置为默认配置？')) {
+        if (confirm('Restore Default Config？')) {
           config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
           normalizeConfig(config);
           saveConfigToStorage();
@@ -364,8 +364,8 @@
             normalizeConfig(config);
             saveConfigToStorage();
             renderSettingView();
-            showSnackbar('✅ 配置导入成功');
-          } catch(ex) { alert('无效的配置文件'); }
+            showSnackbar('✅ Import Succeeded');
+          } catch(ex) { alert('Invalid Config file'); }
           e.target.value = '';
         };
         reader.readAsText(file);
@@ -391,7 +391,7 @@
       const buttons = config.aiTalkButtons || [];
       let buttonsHtml = '';
       if (buttons.length === 0) {
-        buttonsHtml = `<p class="empty-message"><i class="fas fa-info-circle"></i> 暂无Role Play AI 链接，请老师添加。</p>`;
+        buttonsHtml = `<p class="empty-message"><i class="fas fa-info-circle"></i> There are no avaliable Role Play AI models. Please add a model first.</p>`;
       } else {
         buttonsHtml = buttons.map(btn => `
           <div class="aitalk-btn" data-url="${btn.url.replace(/"/g, '&quot;')}">
@@ -442,7 +442,7 @@
     function renderSettingView() {
       if (!settingAuthenticated) return setView('home');
       
-      let sourceText = { cloud: '☁️ 云端配置', local: '💾 本地存储', default: '📄 默认配置' }[configSource];
+      let sourceText = { cloud: '☁️ Cloud Config', local: '💾 Local Storage', default: '📄 Default Config' }[configSource];
       
       // AI Talk 管理部分 HTML
       let aiTalkHtml = '';
@@ -480,13 +480,13 @@
           <div class="flex-row"><h3>${part.name}</h3><div><button class="btn-icon" data-action="renamePart" data-part-id="${part.id}"><i class="fas fa-pen"></i></button><button class="btn-icon" data-action="deletePart" data-part-id="${part.id}"><i class="fas fa-trash-alt"></i></button></div></div>
           <div class="input-group"><label>Part Title</label><input type="text" data-part-id="${part.id}" data-field="partName" value="${part.name}"></div>
           ${gamesHtml}
-          <button class="btn-outline" data-action="addGame" data-part-id="${part.id}"><i class="fas fa-plus"></i> 添加游戏</button>
+          <button class="btn-outline" data-action="addGame" data-part-id="${part.id}"><i class="fas fa-plus"></i> Add Game</button>
         </div>`;
       });
 
       viewContainer.innerHTML = `
         <div>
-          <div class="config-source-badge"><i class="fas fa-database"></i> 配置来源：${sourceText}</div>
+          <div class="config-source-badge"><i class="fas fa-database"></i> Setting from：${sourceText}</div>
           
           <div class="setting-section">
             <div class="setting-title"><i class="fas fa-key"></i> General Setup</div>
@@ -506,8 +506,8 @@
             <div class="setting-title"><i class="fas fa-layer-group"></i> Game Management</div>
             ${partsHtml}
             <div class="flex-row" style="margin-top:20px">
-              <button class="btn-primary" data-action="addPart"><i class="fas fa-plus"></i> 新建Part</button>
-              <button class="btn-outline" data-action="resetDefault"><i class="fas fa-undo-alt"></i> 重置默认</button>
+              <button class="btn-primary" data-action="addPart"><i class="fas fa-plus"></i> Create New Part</button>
+              <button class="btn-outline" data-action="resetDefault"><i class="fas fa-undo-alt"></i> Reset Default</button>
             </div>
           </div>
           
